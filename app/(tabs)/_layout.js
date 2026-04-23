@@ -1,0 +1,24 @@
+import { Tabs } from 'expo-router';
+import { Colors } from '../../constants/colors';
+
+export default function TabLayout() {
+  return (
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: Colors.primary,
+        tabBarInactiveTintColor: Colors.subtext,
+        tabBarStyle: { backgroundColor: Colors.white },
+        headerShown: false,
+      }}
+    >
+      <Tabs.Screen
+        name="map"
+        options={{ title: 'Map', tabBarIcon: () => null }}
+      />
+      <Tabs.Screen
+        name="list"
+        options={{ title: 'List', tabBarIcon: () => null }}
+      />
+    </Tabs>
+  );
+}
