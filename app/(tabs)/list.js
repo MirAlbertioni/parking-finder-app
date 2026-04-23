@@ -1,8 +1,10 @@
-import { FlatList, View, Text, TouchableOpacity, StyleSheet, Platform, Linking } from 'react-native';
+import { useEffect, useState } from 'react';
+import { FlatList, View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState } from 'react';
 import FilterBar from '../../components/FilterBar';
-import { MOCK_PARKINGS } from '../../constants/mockData';
+import ParkingDetail from '../../components/ParkingDetail';
+import { fetchParkingsNearby } from '../../services/parkingApi';
+import * as Location from 'expo-location';
 import { Colors } from '../../constants/colors';
 
 function applyFilter(parkings, filter) {
@@ -10,66 +12,76 @@ function applyFilter(parkings, filter) {
     case 'free':
       return parkings.filter((p) => p.isFree);
     case 'under25':
-      return parkings.filter((p) => p.pricePerHour <= 25);
+      return parkings.filter((p) => p.pricePerHour != null && p.pricePerHour <= 25);
     case 'under50':
-      return parkings.filter((p) => p.pricePerHour <= 50);
+      return parkings.filter((p) => p.pricePerHour != null && p.pricePerHour <= 50);
     default:
       return parkings;
   }
 }
 
-function navigateTo(lat, lng, name) {
-  const label = encodeURIComponent(name);
-  const url = Platform.select({
-    ios: `maps:0,0?q=${label}@${lat},${lng}`,
-    android: `geo:0,0?q=${lat},${lng}(${label})`,
-  });
-  Linking.canOpenURL(url).then((supported) => {
-    if (supported) {
-      Linking.openURL(url);
-    } else {
-      Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`);
-    }
-  });
+function priceLabel(p) {
+  if (p.isFree) return 'Gratis';
+  if (p.pricePerHour != null) return `${p.pricePerHour} kr/h`;
+  return 'Betald';
 }
 
-function ParkingCard({ item }) {
+function ParkingCard({ item, onPress }) {
   return (
-    <View style={styles.card}>
+    <TouchableOpacity style={styles.card} onPress={() => onPress(item)} activeOpacity={0.7}>
       <View style={styles.cardHeader}>
         <Text style={styles.name}>{item.name}</Text>
         <View style={[styles.badge, item.isFree ? styles.badgeFree : styles.badgePaid]}>
-          <Text style={styles.badgeText}>
-            {item.isFree ? 'Gratis' : `${item.pricePerHour} kr/h`}
-          </Text>
+          <Text style={styles.badgeText}>{priceLabel(item)}</Text>
         </View>
       </View>
-      <Text style={styles.address}>{item.address}</Text>
+      {item.address ? <Text style={styles.address}>{item.address}</Text> : null}
       {item.description ? <Text style={styles.desc}>{item.description}</Text> : null}
-      <TouchableOpacity
-        style={styles.navButton}
-        onPress={() => navigateTo(item.lat, item.lng, item.name)}
-      >
-        <Text style={styles.navButtonText}>Navigera hit</Text>
-      </TouchableOpacity>
-    </View>
+      {item.maxHours ? <Text style={styles.desc}>Max {item.maxHours} timmar</Text> : null}
+    </TouchableOpacity>
   );
 }
 
 export default function ListScreen() {
+  const [parkings, setParkings] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('all');
-  const filtered = applyFilter(MOCK_PARKINGS, filter);
+  const [selected, setSelected] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') return;
+      setLoading(true);
+      try {
+        const loc = await Location.getCurrentPositionAsync({});
+        const data = await fetchParkingsNearby(loc.coords.latitude, loc.coords.longitude);
+        setParkings(data);
+      } catch {
+        Alert.alert('Kunde inte ladda parkeringsdata', 'Kontrollera din anslutning och försök igen.');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const filtered = applyFilter(parkings, filter);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <FilterBar selected={filter} onSelect={setFilter} />
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <ParkingCard item={item} />}
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={<Text style={styles.empty}>No parkings found</Text>}
-      />
+      {loading ? (
+        <ActivityIndicator style={styles.loader} size="large" color={Colors.primary} />
+      ) : (
+        <FlatList
+          data={filtered}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => <ParkingCard item={item} onPress={setSelected} />}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={<Text style={styles.empty}>Inga parkeringar hittades</Text>}
+        />
+      )}
+      <ParkingDetail parking={selected} onClose={() => setSelected(null)} />
     </SafeAreaView>
   );
 }
@@ -77,6 +89,7 @@ export default function ListScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   list: { padding: 12, gap: 10 },
+  loader: { flex: 1 },
   card: {
     backgroundColor: Colors.white,
     borderRadius: 12,
@@ -95,13 +108,5 @@ const styles = StyleSheet.create({
   badgeText: { color: Colors.white, fontSize: 12, fontWeight: '600' },
   address: { fontSize: 13, color: Colors.subtext, marginTop: 4 },
   desc: { fontSize: 12, color: Colors.subtext, marginTop: 2 },
-  navButton: {
-    marginTop: 10,
-    backgroundColor: Colors.primary,
-    borderRadius: 8,
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  navButtonText: { color: Colors.white, fontWeight: '600', fontSize: 13 },
   empty: { textAlign: 'center', color: Colors.subtext, marginTop: 40 },
 });

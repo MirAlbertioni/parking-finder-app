@@ -13,11 +13,11 @@ export default function TabLayout() {
     >
       <Tabs.Screen
         name="map"
-        options={{ title: 'Map', tabBarIcon: () => null }}
+        options={{ title: 'Karta', tabBarIcon: () => null }}
       />
       <Tabs.Screen
         name="list"
-        options={{ title: 'List', tabBarIcon: () => null }}
+        options={{ title: 'Lista', tabBarIcon: () => null }}
       />
     </Tabs>
   );

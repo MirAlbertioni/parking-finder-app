@@ -2,8 +2,8 @@ import { ScrollView, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { Colors } from '../constants/colors';
 
 const FILTERS = [
-  { label: 'All', value: 'all' },
-  { label: 'Free', value: 'free' },
+  { label: 'Alla', value: 'all' },
+  { label: 'Gratis', value: 'free' },
   { label: 'Under 25 kr/h', value: 'under25' },
   { label: 'Under 50 kr/h', value: 'under50' },
 ];
@@ -13,6 +13,7 @@ export default function FilterBar({ selected, onSelect }) {
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
+      style={styles.scrollView}
       contentContainerStyle={styles.container}
     >
       {FILTERS.map((f) => (
@@ -31,6 +32,10 @@ export default function FilterBar({ selected, onSelect }) {
 }
 
 const styles = StyleSheet.create({
+  scrollView: {
+    flexGrow: 0,
+    flexShrink: 0,
+  },
   container: {
     paddingHorizontal: 12,
     paddingVertical: 8,
